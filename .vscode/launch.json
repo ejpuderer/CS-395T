@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "type": "gdb",
+            "request": "attach",
+            "name": "Attach to gdbserver",
+            "target": "192.168.80.129:26000",
+            "remote": true,
+            "stopAtEntry": false,
+            "cwd": "/home/vos/jos-vmm-project",
+            "valuesFormatting": "parseText",
+            "gdbpath": "/usr/bin/gdb"
+        }
+    ]
+}
