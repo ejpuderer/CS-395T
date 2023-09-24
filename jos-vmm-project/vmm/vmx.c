@@ -80,8 +80,6 @@ bool vmx_check_support() {
 bool vmx_check_ept() {
 	uint64_t vmx_process_based_msr =  read_msr(IA32_VMX_PROCBASED_CTLS2);
 	uint64_t vmx_ept_msr =  read_msr(IA32_VMX_EPT_VPID_CAP);
-
-)
 	return false;
 }
 
