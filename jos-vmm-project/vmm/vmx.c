@@ -61,10 +61,7 @@ bool vmx_sel_resume(int num) {
 bool vmx_check_support() {
 	uint32_t eax, ebx, ecx, edx;
 	cpuid( 0, &eax, &ebx, &ecx, &edx );
-	/* Your code here */
-    panic("vmx_check_support not implemented\n");
-	cprintf("[VMM] VMX extension not supported.\n");
-	return false;
+	return BIT(ecx, 5);
 }
 
 /* This function reads the VMX-specific MSRs
@@ -81,9 +78,10 @@ bool vmx_check_support() {
  *   EPT is available.
  */
 bool vmx_check_ept() {
-	/* Your code here */
-    panic("vmx_check_ept not implemented\n");
-	cprintf("[VMM] EPT extension not supported.\n");
+	uint64_t vmx_process_based_msr =  read_msr(IA32_VMX_PROCBASED_CTLS2);
+	uint64_t vmx_ept_msr =  read_msr(IA32_VMX_EPT_VPID_CAP);
+
+)
 	return false;
 }
 
