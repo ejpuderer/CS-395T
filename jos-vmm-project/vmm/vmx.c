@@ -1,4 +1,4 @@
-#line 2 "../vmm/vmx.c"
+#line 2 "./vmm/vmx.c"
 
 #include <vmm/vmx.h>
 #include <vmm/vmx_asm.h>
