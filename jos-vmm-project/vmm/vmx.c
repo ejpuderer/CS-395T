@@ -92,6 +92,7 @@ bool vmx_check_ept() {
 		(only if bit 63 of the IA32_VMX_PROCBASED_CTLS MSR is 1).
 	*/
 	uint64_t vmxCtrls = read_msr(IA32_VMX_PROCBASED_CTLS);
+	printf("this is the first msr: %d", vmxCtrls);
 	if (BIT(vmxCtrls, 63) == 1) {
 		/*
 			Secondary Processor-Based VM-Execution Controls
@@ -99,6 +100,7 @@ bool vmx_check_ept() {
 			Bit 1 - Enable EPT
 		*/
 		uint64_t vmxCtrls2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
+		printf("this is the second msr: %d", vmxCtrls2);
 		if (BIT(vmxCtrls2, 1) == 1) return true;
 	}
 
