@@ -1,4 +1,4 @@
-#line 2 "./vmm/vmx.c"
+#line 2 "../vmm/vmx.c"
 
 #include <vmm/vmx.h>
 #include <vmm/vmx_asm.h>
@@ -61,7 +61,13 @@ bool vmx_sel_resume(int num) {
 bool vmx_check_support() {
 	uint32_t eax, ebx, ecx, edx;
 	cpuid( 0, &eax, &ebx, &ecx, &edx );
-	return BIT(ecx, 5);
+	/* Your code here */
+	// 23.6 DISCOVERING SUPPORT FOR VMX
+	// If CPUID.1:ECX.VMX[bit 5] = 1, then VMX operation is supported
+	if (BIT(ecx, 5) == 1) return true;
+
+	cprintf("[VMM] VMX extension not supported.\n");
+	return false;
 }
 
 /* This function reads the VMX-specific MSRs
@@ -78,8 +84,25 @@ bool vmx_check_support() {
  *   EPT is available.
  */
 bool vmx_check_ept() {
-	uint64_t vmx_process_based_msr =  read_msr(IA32_VMX_PROCBASED_CTLS2);
-	uint64_t vmx_ept_msr =  read_msr(IA32_VMX_EPT_VPID_CAP);
+	/* Your code here */
+	/*
+		A.3.3
+		The IA32_VMX_PROCBASED_CTLS2 MSR exists only on processors that support 
+		the 1-setting of the “activate secondary controls” VM-execution control 
+		(only if bit 63 of the IA32_VMX_PROCBASED_CTLS MSR is 1).
+	*/
+	uint64_t vmxCtrls = read_msr(IA32_VMX_PROCBASED_CTLS);
+	if (BIT(vmxCtrls, 63) == 1) {
+		/*
+			Secondary Processor-Based VM-Execution Controls
+			Table 24-7. Definitions of Secondary Processor-Based VM-Execution Controls
+			Bit 1 - Enable EPT
+		*/
+		uint64_t vmxCtrls2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
+		if (BIT(vmxCtrls2, 1) == 1) return true;
+	}
+
+	cprintf("[VMM] EPT extension not supported.\n");
 	return false;
 }
 
@@ -464,6 +487,9 @@ void asm_vmrun(struct Trapframe *tf) {
 	// of cr2 of the guest.
 
 	// Hint, Lab 0: tf_ds should have the number of runs, prior to entering the assembly!!
+	// e (the env we got the trapframe from) and curenv are the same at this point,
+	// because asm_vmrun is called after setting the curenv, so we can just 
+	// reference curenv to get the number of runs here.
 	tf->tf_ds = curenv->env_runs;
 	tf->tf_es = 0;
 	unlock_kernel();
@@ -601,7 +627,7 @@ int vmx_vmrun( struct Env *e ) {
 
 	// Hint, Lab 0: The following if statement should be true when the environment has only run once.
 	// Replace the conditional to use your new variable!
-	if( e->env_runs == 1 ) {
+	if (e->env_runs == 1) {
 		physaddr_t vmcs_phy_addr = PADDR(e->env_vmxinfo.vmcs);
 
 		// Call VMCLEAR on the VMCS region.
@@ -635,7 +661,6 @@ int vmx_vmrun( struct Env *e ) {
 
 	vmcs_write64( VMCS_GUEST_RSP, curenv->env_tf.tf_rsp  );
 	vmcs_write64( VMCS_GUEST_RIP, curenv->env_tf.tf_rip );
-
     panic("asm_vmrun is incomplete");
 	asm_vmrun( &e->env_tf );
 	return 0;
