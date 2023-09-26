@@ -87,7 +87,8 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 {
 	struct Env *e;
 
-	// If envid is zero, the function should return the current environment.
+	// if envid is 0, the function should return the current environment
+	// it doesn't actually return the env - it puts the env in *env_store
 	if (envid == 0) {
 		*env_store = curenv;
 		return 0;
@@ -100,11 +101,11 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// that used the same slot in the envs[] array).
 
 	// it should use the ENVX() macro found in inc/env.h, not straight reference
-	//Lab 0 - coding 2. It incorrectly looks up the env in the envs array.
+	// use ENVX() macro to get the correct index in the envs variable 
+	// and use that to look stuff up
 	e = &envs[ENVX(envid)];
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
-		//Lab 0 - coding 3. It incorrectly fills the **env_store with a null value.
-		*env_store = NULL;
+		*env_store = 0;
 		return -E_BAD_ENV;
 	}
 
@@ -114,13 +115,12 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// must be either the current environment
 	// or an immediate child of the current environment.
 	if (checkperm && e != curenv && e->env_parent_id != curenv->env_id) {
-		//Lab 0 - coding 3. It incorrectly fills the **env_store with a null value.
-		*env_store = NULL;
+		*env_store = 0;
 		return -E_BAD_ENV;
 	}
 
 	// should be *env_store = e;, this might literaly work tho
-	env_store = &e;
+	*env_store = e;
 	return 0;
 }
 
@@ -669,8 +669,8 @@ env_run(struct Env *e)
 		if (curenv && curenv->env_status == ENV_RUNNING)
 			curenv->env_status = ENV_RUNNABLE;
 
-		//cprintf("cpu %d switch from env %d to env %d\n",
-		//	cpunum(), curenv ? curenv - envs : -1, e - envs);
+		// cprintf("cpu %d switch from env %d to env %d\n",
+		// 	cpunum(), curenv ? curenv - envs : -1, e - envs);
 
 		// keep track of which environment we're currently
 		// running
@@ -678,13 +678,11 @@ env_run(struct Env *e)
 		e->env_status = ENV_RUNNING;
 
 		// Hint, Lab 0: An environment has started running. We should keep track of that somewhere, right?
-		e->env_runs = 1;
+		e->env_runs++; // increment the number of times the env has been run
+
 		// restore e's address space
 		if(e->env_type != ENV_TYPE_GUEST)
 			lcr3(e->env_cr3);
-	} else {
-		//Increment so tf->tf_ds can be poplulated w/ run total in vmx asm_vmrun
-		e->env_runs++;
 	}
 
 	assert(e->env_status == ENV_RUNNING);
