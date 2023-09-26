@@ -49,12 +49,14 @@ sched_yield(void)
 		if (envs[k].env_status == ENV_RUNNABLE) {
             /* Your code here */
 			env_run(&envs[k]);
+			if(envs[k].env_type == ENV_TYPE_GUEST) vmxon();
 		}
 	}
 
 	if (curenv && curenv->env_status == ENV_RUNNING) {
         /* Your code here */
 		env_run(curenv);
+		if(curenv->env_type == ENV_TYPE_GUEST) vmxon();
 	}
 
 	// sched_halt never returns
