@@ -93,7 +93,7 @@ bool vmx_check_ept() {
 	*/
 	uint64_t vmxCtrls = read_msr(IA32_VMX_PROCBASED_CTLS);
 	cprintf("this is the first msr: %d", vmxCtrls);
-	if (BIT(vmxCtrls, 31) == 1) {
+	if (BIT(vmxCtrls, 63) == 1) {
 		/*
 			Secondary Processor-Based VM-Execution Controls
 			Table 24-7. Definitions of Secondary Processor-Based VM-Execution Controls
@@ -101,7 +101,7 @@ bool vmx_check_ept() {
 		*/
 		uint64_t vmxCtrls2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
 		cprintf("this is the second msr: %d", vmxCtrls2);
-		if (BIT(vmxCtrls2, 1) == 1) return true;
+		if (BIT(vmxCtrls2, 33) == 1) return true;
 	}
 
 	cprintf("[VMM] EPT extension not supported.\n");
