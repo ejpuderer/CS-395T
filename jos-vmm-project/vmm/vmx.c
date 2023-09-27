@@ -93,7 +93,7 @@ bool vmx_check_ept() {
 	*/
 	uint64_t vmxCtrls = read_msr(IA32_VMX_PROCBASED_CTLS);
 	cprintf("this is the first msr: %d", vmxCtrls);
-	if (BIT(vmxCtrls, 63) == 1) {
+	if (BIT(vmxCtrls, 31) == 1) {
 		/*
 			Secondary Processor-Based VM-Execution Controls
 			Table 24-7. Definitions of Secondary Processor-Based VM-Execution Controls
