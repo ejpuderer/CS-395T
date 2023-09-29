@@ -48,15 +48,34 @@ sched_yield(void)
 		// If this environment is runnable, run it.
 		if (envs[k].env_status == ENV_RUNNABLE) {
             /* Your code here */
+#ifndef VMM_GUEST
+			if(envs[k].env_type == ENV_TYPE_GUEST) {
+				int r;
+				r = vmxon();
+				if (r < 0) {
+					/* Failed to turn vmx on, destroy env */
+					env_destroy(&envs[k]);
+					continue;
+				}
+			}
+#endif
 			env_run(&envs[k]);
-			if(envs[k].env_type == ENV_TYPE_GUEST) vmxon();
 		}
 	}
 
 	if (curenv && curenv->env_status == ENV_RUNNING) {
         /* Your code here */
+#ifndef VMM_GUEST
+		if(envs[k].env_type == ENV_TYPE_GUEST) {
+			int r;
+			r = vmxon();
+			if (r < 0) {
+				/* Failed to turn vmx on, destroy env */
+				env_destroy(curenv);
+			}
+		}
+#endif
 		env_run(curenv);
-		if(curenv->env_type == ENV_TYPE_GUEST) vmxon();
 	}
 
 	// sched_halt never returns
