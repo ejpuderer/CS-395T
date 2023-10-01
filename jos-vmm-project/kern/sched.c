@@ -48,6 +48,9 @@ sched_yield(void)
 		// If this environment is runnable, run it.
 		if (envs[k].env_status == ENV_RUNNABLE) {
             /* Your code here */
+
+/* 	If not defined above at compile time, 
+	vmxon() call here will throw undefined error */			
 #ifndef VMM_GUEST
 			if(envs[k].env_type == ENV_TYPE_GUEST) {
 				int r;
