@@ -435,6 +435,16 @@ sys_vmx_incr_vmdisk_number() {
 //       instead of the normal page table. 
 // 
  /*
+From Canvas
+first walks the page table levels at the host (given the srcva), and then gets the physical page 
+corresponding to the virtual address srcva (i.e. it returns the struct PageInfo). The corresponding 
+virtual address of this page is then computed using page2kva(), which basically acts as 
+the hva in the call to ept_map_hva2gpa().
+
+Is srcva a kernel virtual address? - No. The srcva that is passed into sys_ept_map() is not a kernel virtual address. 
+If you want to get the kernel virtual address associated with a srcva, you can look up the PageInfo struct associated 
+with srcva, then look up the kernel virtual address for that PageInfo struct.
+
 Maps a page from the evnironment corresponding to envid into the guest vm 
 environments phys addr space.  Assuming the mapping is successful, this should
 also increment the reference count of the mapped page.

@@ -31,6 +31,17 @@ static inline int epte_present(epte_t epte)
 	return (epte & __EPTE_FULL) > 0;
 }
 
+
+// From Canvas
+// does the walk on the page table hierarchy at the guest and returns the page table entry corresponding to a gpa. 
+// It calculates the next index using the address and iterates until it reaches the page table entry at level 0 
+// which points to the actual page.
+// 
+// What does ADDR_TO_IDX(pa, n) do and what is the n parameter? - ADDR_TO_IDX(pa, n) 
+// returns the index corresponding to physical address pa in the nth level of the page table. 
+// You can get an idea of how it can be used by looking in the test_ept_map()function at the bottom of vmm/ept.c. 
+// We suggest using this macro over adapting existing page table walk logic
+//
 // Find the final ept entry for a given guest physical address,
 // creating any missing intermediate extended page tables if create is non-zero.
 //
@@ -116,6 +127,12 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
     return 0;
 }
 
+
+// From Canvas
+// does a walk on the page table levels at the guest (given the gpa) using ept_lookup_gpa() 
+// and then gets a page table entry at level 0 corresponding to the gpa. This function then 
+// inserts the physical address corresponding to the hva, in the page table entry returned by ept_lookup_gpa().
+//
 // Map host virtual address hva to guest physical address gpa,
 // with permissions perm.  eptrt is a pointer to the extended
 // page table root.

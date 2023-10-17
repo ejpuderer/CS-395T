@@ -9,6 +9,18 @@
 
 #define JOS_ENTRY 0x7000
 
+// From Canvas
+// breaks down each segment in number of pages, and calls sys_ept_map() for each page. 
+// You cannot pass in the page directly, but rather will have to use a TEMP variable. 
+// This is defined as a macro in memlayout.h
+//
+// Is srcva a kernel virtual address? - No. The srcva that is passed into sys_ept_map() is not a kernel virtual address. 
+// If you want to get the kernel virtual address associated with a srcva, you can look up the PageInfo struct associated 
+// with srcva, then look up the kernel virtual address for that PageInfo struct.
+//
+// What are the possible values of perm? - The possible values of perm (for sys_ept_map();
+// other permissions may be set for other situations in the codebase) are defined in inc/ept.h.
+//
 // Map a region of file fd into the guest at guest physical address gpa.
 // The file region to map should start at fileoffset and be length filesz.
 // The region to map in the guest should be memsz.  The region can span multiple pages.
@@ -27,6 +39,12 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	return -E_NO_SYS;
 } 
 
+// From Canvas
+// reads the ELF header from the kernel executable into the struct Elf. 
+// The kernel ELF contains multiple segments which must be copied from the host to the guest. 
+// This function is similar to the one observed in the prelab but has to call something other than memcpy()
+// to map the memory because we are in the virtual guest.
+//
 // Read the ELF headers of kernel file specified by fname,
 // mapping all valid segments into guest physical memory as appropriate.
 //
