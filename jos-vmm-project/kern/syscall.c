@@ -428,27 +428,35 @@ sys_vmx_incr_vmdisk_number() {
 	vmx_incr_vmdisk_number();
 }
 
-// Maps a page from the evnironment corresponding to envid into the guest vm 
-// environments phys addr space.  Assuming the mapping is successful, this should
-// also increment the reference count of the mapped page.
-//
-//
-// Return 0 on success, < 0 on error.  Errors are:
-//	-E_BAD_ENV if srcenvid and/or guest doesn't currently exist,
-//		or the caller doesn't have permission to change one of them.
-//	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
-//		or guest_pa >= guest physical size or guest_pa is not page-aligned.
-//	-E_INVAL is srcva is not mapped in srcenvid's address space.
-//	-E_INVAL if perm is inappropriate 
-//	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's
-//		address space.
-//	-E_NO_MEM if there's no memory to allocate any necessary page tables. 
-//
+
 // Hint: Use ept_map_hva2gpa().  A guest environment uses 
 //       env_pml4e to store the root of the extended page tables.
 //       This function is similar to sys_page_map(). It uses Extended Page Table 
 //       instead of the normal page table. 
 // 
+ /*
+Maps a page from the evnironment corresponding to envid into the guest vm 
+environments phys addr space.  Assuming the mapping is successful, this should
+also increment the reference count of the mapped page.
+
+https://edstem.org/us/courses/42546/discussion/3654355 #367
+Args:
+	srcenvid (envid_t):  The environment id of the source
+	srcva (void*):  The source page table's virtual address in 64 bit
+	guest (envid_t):  The guest environment id
+	guest_pa (void*):  The guest environment's page table's physical address in 64 bit
+	perm (int):  The permission the Guest should have for the EPT passed in as an integer.  
+		Can use bitwise operations to do logical bitwise comparison for the bit-by-bit permissions
+		for EPTE (Notes: EPT tables to have write access - e.g., PTE_W, perm & PTE_W).
+Returns result (int):  
+	0 on success, < 0 on error.
+	-E_BAD_ENV if srcenvid and/or guest doesn't currently exist,or the caller doesn't have permission to change one of them.
+	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,	or guest_pa >= guest physical size or guest_pa is not page-aligned.
+	-E_INVAL is srcva is not mapped in srcenvid's address space.
+	-E_INVAL if perm is inappropriate 
+	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's address space.
+	-E_NO_MEM if there's no memory to allocate any necessary page tables.
+*/
 static int
 sys_ept_map(envid_t srcenvid, void *srcva,
 	    envid_t guest, void* guest_pa, int perm)

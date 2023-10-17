@@ -36,16 +36,21 @@ static inline int epte_present(epte_t epte)
 //
 // If epte_out is non-NULL, store the found epte_t* at this address.
 //
-// Return 0 on success.
-//
-// Error values:
-//    -E_INVAL if eptrt is NULL
-//    -E_NO_ENT if create == 0 and the intermediate page table entries are missing.
-//    -E_NO_MEM if allocation of intermediate page table entries fails
-//
 // Hint: Set the permissions of intermediate ept entries to __EPTE_FULL.
 //       The hardware ANDs the permissions at each level, so removing a permission
 //       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
+/*
+Args:
+	eptrt (epte_t*): A pointer to ept root represented as an extended page table entry type
+	gpa (void*): A guest physical address in 64 bit
+	create (int): Create any missing intermedate extended page tables if create is != 0
+	epte_out (epte_t): A pointer to a pointer that points to the final ept entry outputing the host physical address
+Returns:
+	result (int): 0 on success otherwise use an error value as defined in the comment above that i
+	-E_INVAL if eptrt is NULL
+	-E_NO_ENT if create == 0 and the intermediate page table entries are missing.
+	-E_NO_MEM if allocation of intermediate page table entries fails
+*/
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
     /* Your code here */

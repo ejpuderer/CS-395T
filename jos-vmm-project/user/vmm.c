@@ -20,6 +20,10 @@ static int
 map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz, 
 	      int fd, size_t filesz, off_t fileoffset ) {
 	/* Your code here */
+	// envid_t srcid = sys_getenvid();
+	// sys_ept_map(srcid, void *srcva ?,
+	//     guest, void* guest_pa -> gpa?, int perm ?)
+
 	return -E_NO_SYS;
 } 
 
@@ -32,6 +36,13 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 static int
 copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	/* Your code here */
+	//File descriptor reference, dont modify
+	int fd = open(fname, O_RDONLY);
+	if (fd < 0) return fd;
+
+	//se load_icode in env.c for ELF load ex
+	// map_in_guest(guest, ?, ?, fd, ?, ?)
+
 	return -E_NO_SYS;
 }
 
