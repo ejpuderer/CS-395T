@@ -32,11 +32,25 @@ static int
 map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz, 
 	      int fd, size_t filesz, off_t fileoffset ) {
 	/* Your code here */
-	// envid_t srcid = sys_getenvid();
-	// sys_ept_map(srcid, void *srcva ?,
-	//     guest, void* guest_pa -> gpa?, int perm ?)
+	envid_t srcid = sys_getenvid();
+	int r;
 
-	return -E_NO_SYS;
+	for (int i = 0; i < memsz; i += PGSIZE) {
+		// UTEMP from memlayout for temp mapping of pages
+		r = sys_page_alloc(srcid, UTEMP, __EPTE_FULL);
+		if (r < 0) return r;
+
+		// ept map hints mention PTE_W?
+		// where does fd/filesz and offset come in ?
+		r = sys_ept_map(srcid, UTEMP, guest, (void*) (gpa + i), __EPTE_FULL);
+		if (r < 0) return r;
+
+		//clear mapped for next loop
+		r = sys_page_unmap(srcid, UTEMP);
+		if (r < 0) return r;
+	}
+
+	return 0;
 } 
 
 // From Canvas
@@ -58,10 +72,33 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	int fd = open(fname, O_RDONLY);
 	if (fd < 0) return fd;
 
-	//se load_icode in env.c for ELF load ex
-	// map_in_guest(guest, ?, ?, fd, ?, ?)
+	// see spawn.c
+	unsigned char elf_buf[512];
+	struct Elf* elf = (struct Elf*) elf_buf;
+	if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
+            || elf->e_magic != ELF_MAGIC) {
+		close(fd);
+		cprintf("elf magic %08x want %08x\n", elf->e_magic, ELF_MAGIC);
+		return -E_NOT_EXEC;
+	}
 
-	return -E_NO_SYS;
+	//see load_icode in env.c for ELF load ex
+	struct Proghdr *ph, *eph;
+	ph  = (struct Proghdr *)((uint8_t *)elf + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	for(;ph < eph; ph++) {
+		if (ph->p_type == ELF_PROG_LOAD) {
+			int r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset);
+			if (r < 0) {
+				close(fd);
+				return r;
+			}
+		}
+	}
+
+	close(fd);
+	fd = -1;
+	return 0;
 }
 
 void
