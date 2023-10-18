@@ -459,19 +459,44 @@ Args:
 		Can use bitwise operations to do logical bitwise comparison for the bit-by-bit permissions
 		for EPTE (Notes: EPT tables to have write access - e.g., PTE_W, perm & PTE_W).
 Returns result (int):  
-	0 on success, < 0 on error.
-	-E_BAD_ENV if srcenvid and/or guest doesn't currently exist,or the caller doesn't have permission to change one of them.
-	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,	or guest_pa >= guest physical size or guest_pa is not page-aligned.
-	-E_INVAL is srcva is not mapped in srcenvid's address space.
-	-E_INVAL if perm is inappropriate 
-	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's address space.
-	-E_NO_MEM if there's no memory to allocate any necessary page tables.
+	// Return 0 on success, < 0 on error.  Errors are:
+//	-E_BAD_ENV if srcenvid and/or dstenvid doesn't currently exist,
+//		or the caller doesn't have permission to change one of them.
+//	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
+//		or dstva >= UTOP or dstva is not page-aligned.
+//	-E_INVAL is srcva is not mapped in srcenvid's address space.
+//	-E_INVAL if perm is inappropriate (see sys_page_alloc).
+//	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's
+//		address space.
+//	-E_NO_MEM if there's no memory to allocate any necessary page tables.
 */
 static int
 sys_ept_map(envid_t srcenvid, void *srcva,
 	    envid_t guest, void* guest_pa, int perm)
 {
-    /* Your code here */
+	/* Your code here */
+
+	struct Env *srcenv, *dstenv;
+	int r;
+	//	-E_BAD_ENV if srcenvid and/or dstenvid doesn't currently exist,
+	r = envid2env(srcenvid, &srcenv, 1);
+	if (r < 0) return -E_BAD_ENV;
+
+	r = envid2env(guest, &dstenv, 1);
+	if (r < 0) return -E_BAD_ENV;
+
+	// Check permission?
+
+
+    //	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
+	//		or dstva >= UTOP or dstva is not page-aligned.
+	if (srcva >= (void*) UTOP || guest_pa >= (void*) UTOP)
+		return -E_INVAL;
+
+	// page-aligned ? % PGSIZE from pmap.c 
+	// if(srcva % PGSIZE != 0 || guest_pa % PGSIZE != 0)
+	// return -E_INVAL;
+	
     return 0;
 }
 
