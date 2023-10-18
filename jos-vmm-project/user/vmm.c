@@ -36,9 +36,20 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	int r;
 
 	for (int i = 0; i < memsz; i += PGSIZE) {
+		// Can i exceed fd size?
+
 		// UTEMP from memlayout for temp mapping of pages
+		// allocate the memory
 		r = sys_page_alloc(srcid, UTEMP, __EPTE_FULL);
 		if (r < 0) return r;
+
+		// seek data from file
+		if ((r = seek(fd, fileoffset + i)) < 0)
+		return r;
+
+		// read from file
+		if ((r = readn(fd, UTEMP, PGSIZE)) < 0)
+		return r;
 
 		// ept map hints mention PTE_W?
 		// where does fd/filesz and offset come in ?
