@@ -522,7 +522,14 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	// ppte matches type of eptrt
 	// overwrite val - all othe rcalls are set to 0?	
 	r = ept_map_hva2gpa(ppte, srcva, guest_pa, perm, 0);
-    return r;
+	if (r < 0) {
+		return r;
+	}
+
+	// increment amount of times physical page is referenced
+	pp->pp_ref += 1;
+
+    return 0;
 }
 
 static envid_t
