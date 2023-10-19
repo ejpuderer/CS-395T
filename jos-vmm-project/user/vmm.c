@@ -32,15 +32,20 @@ static int
 map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz, 
 	      int fd, size_t filesz, off_t fileoffset ) {
 	/* Your code here */
+	// return error if file size is greater than memory size
+	if (filesz > memsz) {
+		return -1;
+	}
+
 	envid_t srcid = sys_getenvid();
 	int r;
 
-	for (int i = 0; i < memsz; i += PGSIZE) {
+	for (int i = 0; i < filesz; i += PGSIZE) {
 		// Can i exceed fd size?
 
 		// UTEMP from memlayout for temp mapping of pages
 		// allocate the memory
-		r = sys_page_alloc(srcid, UTEMP, __EPTE_FULL);
+		r = sys_page_alloc(srcid, UTEMP, PTE_SYSCALL);
 		if (r < 0) return r;
 
 		// seek data from file
@@ -48,12 +53,17 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 		return r;
 
 		// read from file
-		if ((r = readn(fd, UTEMP, PGSIZE)) < 0)
+		int totalBytesToRead = PGSIZE;
+		if (filesz - i < PGSIZE) {
+			totalBytesToRead = filesz - i;
+		}
+
+		if ((r = readn(fd, UTEMP, totalBytesToRead)) < 0)
 		return r;
 
 		// ept map hints mention PTE_W?
 		// where does fd/filesz and offset come in ?
-		r = sys_ept_map(srcid, UTEMP, guest, (void*) (gpa + i), __EPTE_FULL);
+		r = sys_ept_map(srcid, UTEMP, guest, (void*) (gpa + i), PTE_SYSCALL);
 		if (r < 0) return r;
 
 		//clear mapped for next loop
