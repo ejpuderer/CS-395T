@@ -148,7 +148,22 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
         int overwrite) {
     /* Your code here */
-    return 0;
+	// see ept_gpa2hva, pointer made, then passed to ept_lookup_gpa
+	epte_t* pte;
+	int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
+	if (r == 0) {
+		// If the mapping already exists and overwrite is set to 0, return -E_INVAL.
+		if (0 == overwrite && &pte) {
+			// pte? Would expect the other variables to exist already so best guess
+			return -E_INVAL;
+		}
+
+		// then gets a page table entry at level 0 corresponding to the gpa
+
+		// This function then inserts the physical address corresponding to the hva
+		//, in the page table entry returned by ept_lookup_gpa().
+	}
+    return r;
 }
 
 int ept_alloc_static(epte_t *eptrt, struct VmxGuestInfo *ginfo) {
