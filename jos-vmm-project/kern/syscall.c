@@ -475,29 +475,54 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	    envid_t guest, void* guest_pa, int perm)
 {
 	/* Your code here */
-
 	struct Env *srcenv, *dstenv;
 	int r;
 	//	-E_BAD_ENV if srcenvid and/or dstenvid doesn't currently exist,
+	//    or caller doesn't have permission to change envid. 
+	// Permission checked in envid2env
 	r = envid2env(srcenvid, &srcenv, 1);
 	if (r < 0) return -E_BAD_ENV;
 
 	r = envid2env(guest, &dstenv, 1);
 	if (r < 0) return -E_BAD_ENV;
 
-	// Check permission?
-
-
-    //	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
+	//From sys_page_map
+	//	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
 	//		or dstva >= UTOP or dstva is not page-aligned.
 	if (srcva >= (void*) UTOP || guest_pa >= (void*) UTOP)
 		return -E_INVAL;
+	if (srcva != ROUNDDOWN(srcva, PGSIZE) || guest_pa != ROUNDDOWN(guest_pa, PGSIZE))
+		return -E_INVAL;
 
-	// page-aligned ? % PGSIZE from pmap.c 
-	// if(srcva % PGSIZE != 0 || guest_pa % PGSIZE != 0)
-	// return -E_INVAL;
-	
-    return 0;
+	//	-E_INVAL if perm is inappropriate (see sys_page_alloc).
+	if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL))
+		return -E_INVAL;
+
+	struct PageInfo *pp;
+	pte_t *ppte;
+	//From sys_page_map
+	//	-E_INVAL is srcva is not mapped in srcenvid's address space.
+	if ((pp = page_lookup(srcenv->env_pml4e, srcva, &ppte)) == 0)
+	return -E_INVAL;
+
+	//From sys_page_map
+	//	-E_NO_MEM if there's no memory to allocate any necessary page tables.
+	if (!(pp = page_alloc(ALLOC_ZERO)))
+		return -E_NO_MEM;
+
+	//	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's address space.
+	if ((perm & PTE_W) && !(*ppte & PTE_W))
+		return -E_INVAL;
+
+	// Todo
+	// Maps a page from the evnironment corresponding to envid into the guest vm 
+	// environments phys addr space.  Assuming the mapping is successful, this should
+	// also increment the reference count of the mapped page.
+	// eptrt (epte_t*): A pointer to ept root represented as an extended page table entry type
+	// ppte matches type of eptrt
+	// overwrite val - all othe rcalls are set to 0?	
+	r = ept_map_hva2gpa(ppte, srcva, guest_pa, perm, 0);
+    return r;
 }
 
 static envid_t

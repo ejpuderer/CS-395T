@@ -93,7 +93,7 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	int fd = open(fname, O_RDONLY);
 	if (fd < 0) return fd;
 
-	// see spawn.c
+	// see lib/spawn.c
 	unsigned char elf_buf[512];
 	struct Elf* elf = (struct Elf*) elf_buf;
 	if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
