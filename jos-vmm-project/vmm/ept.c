@@ -71,6 +71,27 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 	// 365 Loop if you know how deep you're traversing (OH suggested line 279 in ept.c 
 	// or look at other ? functions in ept.c that does the traversal / walk).
 
+	/* Go through the extended page table to check if the immediate mappings are correct */
+	// You can get an idea of how it can be used by looking in the test_ept_map()
+	for (int i = EPT_LEVELS - 1; i > 0; --i ) {
+		// returns the index corresponding to physical address pa in the nth level of the page table.
+		int idx = ADDR_TO_IDX(UTEMP, i);
+		if (!epte_present(eptrt[idx])) {
+			// -E_NO_ENT if create == 0 and the intermediate page table entries are missing.
+			if (0 == create) return -E_NO_ENT;
+			
+			// create = 1, create intermediate mapping
+
+			// -E_NO_MEM if allocation of intermediate page table entries fails
+		}
+		if (!(eptrt[idx] & __EPTE_FULL)) {
+			panic("Permission check failed at immediate level %d.", i);
+		}
+		eptrt = (epte_t *) epte_page_vaddr(eptrt[idx]);
+	}
+	
+	// If epte_out is non-NULL, store the found epte_t* at this address.
+
     return 0;
 }
 
@@ -164,10 +185,11 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 			return -E_INVAL;
 		}
 
-		// then gets a page table entry at level 0 corresponding to the gpa
-
 		// This function then inserts the physical address corresponding to the hva
 		//, in the page table entry returned by ept_lookup_gpa().
+		// pte now set, use for ?
+
+		// You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 	}
     return r;
 }
