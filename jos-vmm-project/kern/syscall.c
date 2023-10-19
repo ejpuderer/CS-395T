@@ -514,19 +514,12 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	if ((perm & PTE_W) && !(*ppte & PTE_W))
 		return -E_INVAL;
 
-	// Todo
-	// Maps a page from the evnironment corresponding to envid into the guest vm 
-	// environments phys addr space.  Assuming the mapping is successful, this should
-	// also increment the reference count of the mapped page.
-	// eptrt (epte_t*): A pointer to ept root represented as an extended page table entry type
-	// ppte matches type of eptrt
-	// overwrite val - all othe rcalls are set to 0?	
-
 	// The corresponding virtual address of this page is then computed using page2kva(),
 	// which basically acts as the hva in the call to ept_map_hva2gpa().
 	// A guest environment uses env_pml4e to store the root of the extended page tables.
-	void *kva_src = page2kva(pp);
-	r = ept_map_hva2gpa(dstenv->env_pml4e, kva_src, guest_pa, perm, 0);
+	// guest env id to dest Env
+	// see ept.c/ept_alloc_static, for page2kva from page info
+	r = ept_map_hva2gpa(dstenv->env_pml4e, page2kva(pp), guest_pa, perm, 0);
 	if (r < 0) {
 		return r;
 	}
