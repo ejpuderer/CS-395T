@@ -519,6 +519,7 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	// A guest environment uses env_pml4e to store the root of the extended page tables.
 	// guest env id to dest Env
 	// see ept.c/ept_alloc_static, for page2kva from page info
+	// or vmm/vmexits.c/handle_eptviolation
 	r = ept_map_hva2gpa(dstenv->env_pml4e, page2kva(pp), guest_pa, perm, 0);
 	if (r < 0) {
 		return r;
