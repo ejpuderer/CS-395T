@@ -500,10 +500,12 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 
 	struct PageInfo *pp;
 	pte_t *ppte;
+	//From sys_page_map
 	//	-E_INVAL is srcva is not mapped in srcenvid's address space.
 	if ((pp = page_lookup(srcenv->env_pml4e, srcva, &ppte)) == 0)
 	return -E_INVAL;
 
+	//From sys_page_map
 	//	-E_NO_MEM if there's no memory to allocate any necessary page tables.
 	if (!(pp = page_alloc(ALLOC_ZERO)))
 		return -E_NO_MEM;
@@ -517,8 +519,9 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	// environments phys addr space.  Assuming the mapping is successful, this should
 	// also increment the reference count of the mapped page.
 	// eptrt (epte_t*): A pointer to ept root represented as an extended page table entry type
-	// overwrite val?	
-	r = ept_map_hva2gpa(ppte, srcva, guest_pa, perm, overwrite);
+	// ppte matches type of eptrt
+	// overwrite val - all othe rcalls are set to 0?	
+	r = ept_map_hva2gpa(ppte, srcva, guest_pa, perm, 0);
     return r;
 }
 
