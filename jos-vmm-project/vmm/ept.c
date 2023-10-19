@@ -65,6 +65,12 @@ Returns:
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
     /* Your code here */
+	if (NULL == eptrt) return -E_INVAL;
+
+	//From edstem 364 - Don't use pml4e_walk
+	// 365 Loop if you know how deep you're traversing (OH suggested line 279 in ept.c 
+	// or look at other ? functions in ept.c that does the traversal / walk).
+
     return 0;
 }
 
