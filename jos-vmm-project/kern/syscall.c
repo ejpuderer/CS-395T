@@ -481,38 +481,56 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	//    or caller doesn't have permission to change envid. 
 	// Permission checked in envid2env
 	r = envid2env(srcenvid, &srcenv, 1);
-	if (r < 0) return -E_BAD_ENV;
+	if (r < 0) {
+		cprintf("sys_ept_map envid2env srcenvid error\n");
+		return -E_BAD_ENV;
+	}
 
 	r = envid2env(guest, &dstenv, 1);
-	if (r < 0) return -E_BAD_ENV;
+	if (r < 0) {
+		cprintf("sys_ept_map envid2env guest error\n");
+		return -E_BAD_ENV;
+	}
 
 	//From sys_page_map
 	//	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
 	//		or dstva >= UTOP or dstva is not page-aligned.
-	if (srcva >= (void*) UTOP || guest_pa >= (void*) UTOP)
+	if (srcva >= (void*) UTOP || guest_pa >= (void*) UTOP) {
+		cprintf("sys_ept_map srcva >= (void*) UTOP || guest_pa >= (void*) UTOP error\n");
 		return -E_INVAL;
-	if (srcva != ROUNDDOWN(srcva, PGSIZE) || guest_pa != ROUNDDOWN(guest_pa, PGSIZE))
+	}
+	if (srcva != ROUNDDOWN(srcva, PGSIZE) || guest_pa != ROUNDDOWN(guest_pa, PGSIZE)) {
+		cprintf("sys_ept_map page-aligned. error\n");
 		return -E_INVAL;
+	}
 
 	//	-E_INVAL if perm is inappropriate (see sys_page_alloc).
-	if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL))
+	if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
+		cprintf("sys_ept_map -E_INVAL if perm is inappropriate (see sys_page_alloc) error\n");
 		return -E_INVAL;
+	}
 
 	struct PageInfo *pp;
 	pte_t *ppte;
 	//From sys_page_map
 	//	-E_INVAL is srcva is not mapped in srcenvid's address space.
-	if ((pp = page_lookup(srcenv->env_pml4e, srcva, &ppte)) == 0)
-	return -E_INVAL;
+	if ((pp = page_lookup(srcenv->env_pml4e, srcva, &ppte)) == 0) {
+		cprintf("sys_ept_map page_lookup error\n");
+		return -E_INVAL;
+	}
 
 	//From sys_page_map
 	//	-E_NO_MEM if there's no memory to allocate any necessary page tables.
-	if (!(pp = page_alloc(ALLOC_ZERO)))
+	if (!(pp = page_alloc(ALLOC_ZERO))) {
+		cprintf("sys_ept_map page_alloc error\n");
 		return -E_NO_MEM;
+	}
 
 	//	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's address space.
-	if ((perm & PTE_W) && !(*ppte & PTE_W))
+	if ((perm & PTE_W) && !(*ppte & PTE_W)) {
+		cprintf("sys_ept_map  srcva is read-only in srcenvid's address space. error\n");
 		return -E_INVAL;
+	}
 
 	// The corresponding virtual address of this page is then computed using page2kva(),
 	// which basically acts as the hva in the call to ept_map_hva2gpa().
@@ -522,6 +540,7 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	// or vmm/vmexits.c/handle_eptviolation
 	r = ept_map_hva2gpa(dstenv->env_pml4e, page2kva(pp), guest_pa, perm, 0);
 	if (r < 0) {
+		cprintf("sys_ept_map  ept_map_hva2gpa error\n");
 		return r;
 	}
 

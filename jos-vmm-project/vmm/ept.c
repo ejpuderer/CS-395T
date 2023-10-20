@@ -65,7 +65,10 @@ Returns:
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
     /* Your code here */
-	if (NULL == eptrt) return -E_INVAL;
+	if (NULL == eptrt) {
+		cprintf("ept_lookup_gpa NULL error\n");
+		return -E_INVAL;
+	}
 
 	//From edstem 364 - Don't use pml4e_walk
 	// 365 Loop if you know how deep you're traversing (OH suggested line 279 in ept.c 
@@ -79,7 +82,10 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 		int idx = ADDR_TO_IDX(UTEMP, i);
 		if (!epte_present(eptrt[idx])) {
 			// -E_NO_ENT if create == 0 and the intermediate page table entries are missing.
-			if (0 == create) return -E_NO_ENT;
+			if (0 == create) {
+				cprintf("ept_lookup_gpa 0 == create error\n");
+				return -E_NO_ENT;
+			}
 
 			/*
 
@@ -98,7 +104,10 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			// create = 1, create intermediate mapping / allocate?
 			// allocate a physical page for the page table entry
 			struct PageInfo* pi = page_alloc(eptrt[idx]);
-			if (NULL == pi) return -E_NO_MEM; 
+			if (NULL == pi) {
+				cprintf("ept_lookup_gpa page_alloc error\n");
+				return -E_NO_MEM; 
+			}
 		// Hint: Set the permissions of intermediate ept entries to __EPTE_FULL.
 //       The hardware ANDs the permissions at each level, so removing a permission
 //       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
@@ -204,13 +213,14 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
         int overwrite) {
     /* Your code here */
 	// see ept_gpa2hva, pointer made, then passed to ept_lookup_gpa
-	epte_t* pte;
+	epte_t* pte = NULL;
 	// pte gpa -> hva
 	int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
 	if (r == 0) {
 		// If the mapping already exists and overwrite is set to 0, return -E_INVAL.
 		if (0 == overwrite && *pte) {
 			// pte? Would expect the other variables to exist already so best guess
+			cprintf("ept_map_hva2gpa overwrite && *pte error\n");
 			return -E_INVAL;
 		}
 
@@ -224,6 +234,8 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 		*pte = hpa | __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT;
 		// You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 		// __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT)
+	} else {
+		cprintf("ept_map_hva2gpa ept_lookup_gpa error\n");
 	}
     return r;
 }

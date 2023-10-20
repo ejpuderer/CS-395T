@@ -34,6 +34,7 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	/* Your code here */
 	// return error if file size is greater than memory size
 	if (filesz > memsz) {
+		cprintf("map_in_guest filesz error\n");
 		return -1;
 	}
 
@@ -47,11 +48,16 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 		// UTEMP from memlayout for temp mapping of pages
 		// allocate the memory
 		r = sys_page_alloc(srcid, UTEMP, PTE_SYSCALL);
-		if (r < 0) return r;
+		if (r < 0) {
+			cprintf("map_in_guest sys_page_alloc error\n");
+			return r;
+		}
 
 		// seek data from file
-		if ((r = seek(fd, fileoffset + i)) < 0)
-		return r;
+		if ((r = seek(fd, fileoffset + i)) < 0) {
+			cprintf("map_in_guest seek error\n");
+			return r;
+		}
 
 		// read from file
 		int totalBytesToRead = PGSIZE;
@@ -59,17 +65,25 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 			totalBytesToRead = filesz - i;
 		}
 
-		if ((r = readn(fd, UTEMP, totalBytesToRead)) < 0)
-		return r;
+		if ((r = readn(fd, UTEMP, totalBytesToRead)) < 0) {
+			cprintf("map_in_guest readn error\n");
+			return r;
+		}
 
 		// ept map hints mention PTE_W?
 		// where does fd/filesz and offset come in ?
 		r = sys_ept_map(srcid, UTEMP, guest, (void*) (gpa + i), PTE_SYSCALL);
-		if (r < 0) return r;
+		if (r < 0) {
+			cprintf("map_in_guest sys_ept_map error\n");
+			return r;
+		}
 
 		//clear mapped for next loop
 		r = sys_page_unmap(srcid, UTEMP);
-		if (r < 0) return r;
+		if (r < 0) {
+			cprintf("map_in_guest sys_page_unmap error\n");
+			return r;
+		}
 	}
 
 	return 0;
@@ -112,9 +126,11 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 		if (ph->p_type == ELF_PROG_LOAD) {
 			int r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset);
 			if (r < 0) {
+				cprintf("map_in_guest error\n");
 				close(fd);
 				return r;
 			}
+			cprintf("map_in_guest success\n");
 		}
 	}
 
