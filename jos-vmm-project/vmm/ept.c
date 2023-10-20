@@ -219,8 +219,9 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 		// pte now set, use for ?
 		// (N–1):30 Physical address of the 1-GByte page referenced by this entry1
 		// copy from hva into
+		physaddr_t hpa = PADDR((uintptr_t)hva);
 		// ept_page_insert()
-		pte= hva | __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT;
+		*pte = hpa | __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT;
 		// You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 		// __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT)
 	}
