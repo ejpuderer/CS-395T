@@ -73,7 +73,8 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
 	/* Go through the extended page table to check if the immediate mappings are correct */
 	// You can get an idea of how it can be used by looking in the test_ept_map()
-	for (int i = EPT_LEVELS - 1; i > 0; --i ) {
+	int i = EPT_LEVELS - 1;
+	for (; i > 0; --i ) {
 		// returns the index corresponding to physical address pa in the nth level of the page table.
 		int idx = ADDR_TO_IDX(UTEMP, i);
 		if (!epte_present(eptrt[idx])) {
