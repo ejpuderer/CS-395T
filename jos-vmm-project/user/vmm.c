@@ -40,7 +40,8 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	envid_t srcid = sys_getenvid();
 	int r;
 
-	for (int i = 0; i < filesz; i += PGSIZE) {
+	int i = 0;
+	for (; i < filesz; i += PGSIZE) {
 		// Can i exceed fd size?
 
 		// UTEMP from memlayout for temp mapping of pages
