@@ -33,13 +33,13 @@ static inline int epte_present(epte_t epte)
 
 
 // From Canvas
-// does the walk on the page table hierarchy at the guest and returns the page table entry corresponding to a gpa. 
-// It calculates the next index using the address and iterates until it reaches the page table entry at level 0 
+// does the walk on the page table hierarchy at the guest and returns the page table entry corresponding to a gpa.
+// It calculates the next index using the address and iterates until it reaches the page table entry at level 0
 // which points to the actual page.
-// 
-// What does ADDR_TO_IDX(pa, n) do and what is the n parameter? - ADDR_TO_IDX(pa, n) 
-// returns the index corresponding to physical address pa in the nth level of the page table. 
-// You can get an idea of how it can be used by looking in the test_ept_map()function at the bottom of vmm/ept.c. 
+//
+// What does ADDR_TO_IDX(pa, n) do and what is the n parameter? - ADDR_TO_IDX(pa, n)
+// returns the index corresponding to physical address pa in the nth level of the page table.
+// You can get an idea of how it can be used by looking in the test_ept_map()function at the bottom of vmm/ept.c.
 // We suggest using this macro over adapting existing page table walk logic
 //
 // Find the final ept entry for a given guest physical address,
@@ -71,65 +71,30 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 	}
 
 	//From edstem 364 - Don't use pml4e_walk
-	// 365 Loop if you know how deep you're traversing (OH suggested line 279 in ept.c 
+	// 365 Loop if you know how deep you're traversing (OH suggested line 279 in ept.c
 	// or look at other ? functions in ept.c that does the traversal / walk).
 
 	/* Go through the extended page table to check if the immediate mappings are correct */
 	// You can get an idea of how it can be used by looking in the test_ept_map()
-	int i = EPT_LEVELS - 1;
-	for (; i > 0; --i ) {
-		// returns the index corresponding to physical address pa in the nth level of the page table.
-		int idx = ADDR_TO_IDX(UTEMP, i);
-		if (!epte_present(eptrt[idx])) {
-			// -E_NO_ENT if create == 0 and the intermediate page table entries are missing.
-			if (0 == create) {
-				cprintf("ept_lookup_gpa 0 == create error\n");
-				return -E_NO_ENT;
+    pdpe_t *pdpe  = (pdpe_t *)eptrt [PML4(gpa)];
+		if (!((physaddr_t)pdpe & PTE_P) && create) {
+			struct PageInfo *page   = NULL;
+			if ((page = page_alloc(ALLOC_ZERO))) {
+				page->pp_ref    += 1;
+				eptrt [PML4(gpa)] = page2pa(page)|PTE_U|PTE_W|PTE_P;
+				pte_t *pte= pdpe_walk(KADDR((uintptr_t)((pdpe_t *)(PTE_ADDR(eptrt [PML4(gpa)])))),gpa,create);
+				if (pte!=NULL) *epte_out = (epte_t*)pte;
+				else{
+					return -E_NO_ENT;
+				}
+			} else {
+			 	cprintf("ept_lookup_gpa page_alloc error\n");
+				return -E_NO_MEM;
 			}
-
-			/*
-
-			ept[0]
-			--> *
-					*
-						* [pte] corresponds to gpa
-							*
-			EPT_LEVELS  = 4
-			does this mean that there are 4 page table entries in total? 
-			or does it mean there aer 4 page tables total? 
-
-			which one has our gpa?
-			*/
-			
-			// create = 1, create intermediate mapping / allocate?
-			// allocate a physical page for the page table entry
-			struct PageInfo* pi = page_alloc(eptrt[idx]);
-			if (NULL == pi) {
-				cprintf("ept_lookup_gpa page_alloc error\n");
-				return -E_NO_MEM; 
-			}
-		// Hint: Set the permissions of intermediate ept entries to __EPTE_FULL.
-//       The hardware ANDs the permissions at each level, so removing a permission
-//       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
-
-			// You can map a struct PageInfo * to the corresponding physical address
-			//  * with page2pa() in kern/pmap.h.
-			// epte_addr
-
-			// get physical address of page we just allocated
-			physaddr_t pa = page2pa(pi);
-
-			// store physical address into page table entry
-			// update pte with correct permissions as well
-			eptrt[idx] = pa | __EPTE_FULL | PTE_P;
-			continue;
+		} else if ((uint64_t)pdpe & PTE_P) {
+			*epte_out = pdpe_walk(KADDR((uintptr_t)((pdpe_t *)PTE_ADDR(pdpe))),gpa,create);
 		}
-
-		// If epte_out is non-NULL, store the found epte_t* at this address.
-		eptrt = (epte_t *) epte_page_vaddr(eptrt[idx]);
-		cprintf("ept_lookup_gpa EPT_LEVELS loop %d \n", i);
-	}
-	cprintf("ept_lookup_gpa success\n");
+	// cprintf("ept_lookup_gpa success\n");
     return 0;
 }
 
@@ -194,8 +159,8 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 
 
 // From Canvas
-// does a walk on the page table levels at the guest (given the gpa) using ept_lookup_gpa() 
-// and then gets a page table entry at level 0 corresponding to the gpa. This function then 
+// does a walk on the page table levels at the guest (given the gpa) using ept_lookup_gpa()
+// and then gets a page table entry at level 0 corresponding to the gpa. This function then
 // inserts the physical address corresponding to the hva, in the page table entry returned by ept_lookup_gpa().
 //
 // Map host virtual address hva to guest physical address gpa,
@@ -216,11 +181,11 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 	// see ept_gpa2hva, pointer made, then passed to ept_lookup_gpa
 	epte_t* pte = NULL;
 	// pte gpa -> hva
-	cprintf("ept_map_hva2gpa ept_lookup_gpa call\n");
+	// cprintf("ept_map_hva2gpa ept_lookup_gpa call\n");
 	int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
 	if (r == 0) {
 		// If the mapping already exists and overwrite is set to 0, return -E_INVAL.
-		cprintf("ept_map_hva2gpa *pte check\n");
+		// cprintf("ept_map_hva2gpa *pte check\n");
 		if (0 == overwrite && *pte) {
 			// pte? Would expect the other variables to exist already so best guess
 			cprintf("ept_map_hva2gpa overwrite && *pte error\n");
@@ -232,17 +197,17 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 		// pte now set, use for ?
 		// (N–1):30 Physical address of the 1-GByte page referenced by this entry1
 		// copy from hva into
-		cprintf("ept_map_hva2gpa use PADDR\n");
+		// cprintf("ept_map_hva2gpa use PADDR\n");
 		physaddr_t hpa = PADDR((uintptr_t)hva);
 		// ept_page_insert()
-		cprintf("ept_map_hva2gpa set permission\n");
+		// cprintf("ept_map_hva2gpa set permission\n");
 		*pte = hpa | __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT;
 		// You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 		// __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT)
 	} else {
 		cprintf("ept_map_hva2gpa ept_lookup_gpa error\n");
 	}
-	cprintf("ept_map_hva2gpa success\n");
+	// cprintf("ept_map_hva2gpa success\n");
     return r;
 }
 
@@ -402,9 +367,7 @@ int test_ept_map(void)
 			panic("Permission check failed at immediate level %d.", i);
 		}
 		dir = (epte_t *) epte_page_vaddr(dir[idx]);
-        }
-	cprintf("EPT immediate mapping check passed\n");
-
+	}
 
 	/* stop running after test, as this is just a test run. */
 	panic("Cheers! sys_ept_map seems to work correctly.\n");
