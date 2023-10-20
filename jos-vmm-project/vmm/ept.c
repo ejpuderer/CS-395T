@@ -70,30 +70,27 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 		return -E_INVAL;
 	}
 
-	//From edstem 364 - Don't use pml4e_walk
-	// 365 Loop if you know how deep you're traversing (OH suggested line 279 in ept.c
-	// or look at other ? functions in ept.c that does the traversal / walk).
-
-	/* Go through the extended page table to check if the immediate mappings are correct */
-	// You can get an idea of how it can be used by looking in the test_ept_map()
-    pdpe_t *pdpe  = (pdpe_t *)eptrt [PML4(gpa)];
-		if (!((physaddr_t)pdpe & PTE_P) && create) {
-			struct PageInfo *page   = NULL;
-			if ((page = page_alloc(ALLOC_ZERO))) {
-				page->pp_ref    += 1;
-				eptrt [PML4(gpa)] = page2pa(page)|PTE_U|PTE_W|PTE_P;
-				pte_t *pte= pdpe_walk(KADDR((uintptr_t)((pdpe_t *)(PTE_ADDR(eptrt [PML4(gpa)])))),gpa,create);
-				if (pte!=NULL) *epte_out = (epte_t*)pte;
-				else{
-					return -E_NO_ENT;
-				}
-			} else {
-			 	cprintf("ept_lookup_gpa page_alloc error\n");
-				return -E_NO_MEM;
+	// EDstem 365 , Soujanya Ponnapalli - Its possible to use/modify (kern/pmap.c)pml4e_walk(); \ You can take inspiration from its implementation,
+    // Swiped that code and replaced the variables to clear the IDE errors, then just had to fix the epte_out assignment error on compile
+	pdpe_t *pdpe  = (pdpe_t *)eptrt [PML4(gpa)];
+	if (!((physaddr_t)pdpe & PTE_P) && create) {
+		struct PageInfo *page   = NULL;
+		if ((page = page_alloc(ALLOC_ZERO))) {
+			page->pp_ref    += 1;
+			eptrt [PML4(gpa)] = page2pa(page)|PTE_U|PTE_W|PTE_P;
+			pte_t *pte= pdpe_walk(KADDR((uintptr_t)((pdpe_t *)(PTE_ADDR(eptrt [PML4(gpa)])))),gpa,create);
+			if (pte!=NULL) *epte_out = (epte_t*)pte;
+			else{
+				// ? not sure if this is the right place for error or if error could happen w/ this implementation
+				return -E_NO_ENT;
 			}
-		} else if ((uint64_t)pdpe & PTE_P) {
-			*epte_out = pdpe_walk(KADDR((uintptr_t)((pdpe_t *)PTE_ADDR(pdpe))),gpa,create);
+		} else {
+			cprintf("ept_lookup_gpa page_alloc error\n");
+			return -E_NO_MEM;
 		}
+	} else if ((uint64_t)pdpe & PTE_P) {
+		*epte_out = pdpe_walk(KADDR((uintptr_t)((pdpe_t *)PTE_ADDR(pdpe))),gpa,create);
+	}
 	// cprintf("ept_lookup_gpa success\n");
     return 0;
 }
