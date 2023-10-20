@@ -73,24 +73,33 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
 	/* Go through the extended page table to check if the immediate mappings are correct */
 	// You can get an idea of how it can be used by looking in the test_ept_map()
-	for (int i = EPT_LEVELS - 1; i > 0; --i ) {
+	for (int i = 0; i < EPT_LEVELS; i++ ) {
 		// returns the index corresponding to physical address pa in the nth level of the page table.
 		int idx = ADDR_TO_IDX(UTEMP, i);
 		if (!epte_present(eptrt[idx])) {
 			// -E_NO_ENT if create == 0 and the intermediate page table entries are missing.
 			if (0 == create) return -E_NO_ENT;
 			
-			// create = 1, create intermediate mapping
+			// create = 1, create intermediate mapping / allocate?
+			struct PageInfo* pi = page_alloc(eptrt[idx]);
+			if (NULL == pi) return -E_NO_MEM; 
+		// Hint: Set the permissions of intermediate ept entries to __EPTE_FULL.
+//       The hardware ANDs the permissions at each level, so removing a permission
+//       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
 
-			// -E_NO_MEM if allocation of intermediate page table entries fails
+			// You can map a struct PageInfo * to the corresponding physical address
+			//  * with page2pa() in kern/pmap.h.
+			// epte_addr
+
+			physaddr_t pa = page2pa(pi);
+			pa = EPTE_ADDR;
+			pa |= __EPTE_FULL;
+			eptrt[idx] = pa;
 		}
-		if (!(eptrt[idx] & __EPTE_FULL)) {
-			panic("Permission check failed at immediate level %d.", i);
-		}
+
+		// If epte_out is non-NULL, store the found epte_t* at this address.
 		eptrt = (epte_t *) epte_page_vaddr(eptrt[idx]);
 	}
-	
-	// If epte_out is non-NULL, store the found epte_t* at this address.
 
     return 0;
 }
@@ -188,8 +197,12 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 		// This function then inserts the physical address corresponding to the hva
 		//, in the page table entry returned by ept_lookup_gpa().
 		// pte now set, use for ?
-
+		// (N–1):30 Physical address of the 1-GByte page referenced by this entry1
+		// copy from hva into
+		// ept_page_insert()
+		pte= hva | __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT;
 		// You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
+		// __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT)
 	}
     return r;
 }
