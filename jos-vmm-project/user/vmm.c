@@ -85,7 +85,7 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 			return r;
 		}
 	}
-	cprintf("map_in_guest success\n");
+	// cprintf("map_in_guest success\n");
 	return 0;
 } 
 
@@ -135,7 +135,7 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 
 	close(fd);
 	fd = -1;
-	cprintf("copy_guest_kern_gpa success\n");
+	// cprintf("copy_guest_kern_gpa success\n");
 	return 0;
 }
 
