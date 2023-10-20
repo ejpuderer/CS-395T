@@ -73,14 +73,29 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
 	/* Go through the extended page table to check if the immediate mappings are correct */
 	// You can get an idea of how it can be used by looking in the test_ept_map()
-	for (int i = 0; i < EPT_LEVELS; i++ ) {
+	for (int i = EPT_LEVELS - 1; i > 0; --i ) {
 		// returns the index corresponding to physical address pa in the nth level of the page table.
 		int idx = ADDR_TO_IDX(UTEMP, i);
 		if (!epte_present(eptrt[idx])) {
 			// -E_NO_ENT if create == 0 and the intermediate page table entries are missing.
 			if (0 == create) return -E_NO_ENT;
+
+			/*
+
+			ept[0]
+			--> *
+					*
+						* [pte] corresponds to gpa
+							*
+			EPT_LEVELS  = 4
+			does this mean that there are 4 page table entries in total? 
+			or does it mean there aer 4 page tables total? 
+
+			which one has our gpa?
+			*/
 			
 			// create = 1, create intermediate mapping / allocate?
+			// allocate a physical page for the page table entry
 			struct PageInfo* pi = page_alloc(eptrt[idx]);
 			if (NULL == pi) return -E_NO_MEM; 
 		// Hint: Set the permissions of intermediate ept entries to __EPTE_FULL.
@@ -91,10 +106,13 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			//  * with page2pa() in kern/pmap.h.
 			// epte_addr
 
+			// get physical address of page we just allocated
 			physaddr_t pa = page2pa(pi);
-			pa = EPTE_ADDR;
-			pa |= __EPTE_FULL;
-			eptrt[idx] = pa;
+
+			// store physical address into page table entry
+			// update pte with correct permissions as well
+			eptrt[idx] = pa | __EPTE_FULL | PTE_P;
+			continue;
 		}
 
 		// If epte_out is non-NULL, store the found epte_t* at this address.
@@ -186,6 +204,7 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
     /* Your code here */
 	// see ept_gpa2hva, pointer made, then passed to ept_lookup_gpa
 	epte_t* pte;
+	// pte gpa -> hva
 	int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
 	if (r == 0) {
 		// If the mapping already exists and overwrite is set to 0, return -E_INVAL.
