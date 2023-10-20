@@ -127,8 +127,9 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
 		// If epte_out is non-NULL, store the found epte_t* at this address.
 		eptrt = (epte_t *) epte_page_vaddr(eptrt[idx]);
+		cprintf("ept_lookup_gpa EPT_LEVELS loop %d \n", i);
 	}
-
+	cprintf("ept_lookup_gpa success\n");
     return 0;
 }
 
@@ -215,9 +216,11 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 	// see ept_gpa2hva, pointer made, then passed to ept_lookup_gpa
 	epte_t* pte = NULL;
 	// pte gpa -> hva
+	cprintf("ept_map_hva2gpa ept_lookup_gpa call\n");
 	int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
 	if (r == 0) {
 		// If the mapping already exists and overwrite is set to 0, return -E_INVAL.
+		cprintf("ept_map_hva2gpa *pte check\n");
 		if (0 == overwrite && *pte) {
 			// pte? Would expect the other variables to exist already so best guess
 			cprintf("ept_map_hva2gpa overwrite && *pte error\n");
@@ -229,14 +232,17 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 		// pte now set, use for ?
 		// (N–1):30 Physical address of the 1-GByte page referenced by this entry1
 		// copy from hva into
+		cprintf("ept_map_hva2gpa use PADDR\n");
 		physaddr_t hpa = PADDR((uintptr_t)hva);
 		// ept_page_insert()
+		cprintf("ept_map_hva2gpa set permission\n");
 		*pte = hpa | __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT;
 		// You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 		// __EPTE_TYPE( EPTE_TYPE_WB ) | __EPTE_IPAT)
 	} else {
 		cprintf("ept_map_hva2gpa ept_lookup_gpa error\n");
 	}
+	cprintf("ept_map_hva2gpa success\n");
     return r;
 }
 

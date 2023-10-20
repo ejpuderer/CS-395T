@@ -546,7 +546,7 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 
 	// increment amount of times physical page is referenced
 	pp->pp_ref += 1;
-
+	cprintf("sys_ept_map success\n");
     return 0;
 }
 
