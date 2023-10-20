@@ -209,7 +209,7 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
 	int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
 	if (r == 0) {
 		// If the mapping already exists and overwrite is set to 0, return -E_INVAL.
-		if (0 == overwrite && &pte) {
+		if (0 == overwrite && *pte) {
 			// pte? Would expect the other variables to exist already so best guess
 			return -E_INVAL;
 		}
