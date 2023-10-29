@@ -22,18 +22,40 @@ PCI: 00:01.3: 8086:7113: class: 80000b0800000006.80000b0800000080 (Bridge device
 PCI: 00:02.0: 1234:1111: class: 8000100800000003.8000100800000000 (Display controller) irq: 549755813888
 PCI: 00:03.0: 8086:100e: class: 8000180800000002.8000180800000000 (Network controller) irq: 549755813899
 PCI function 00:03.0 (8086:100e) enabled
-VMXON
 Processor supports VMX
 Processor supports EPT
 VCPUNUM allocated: 0
 FS is running
-Error copying page into the guest - 4294967289
-.FS can do I/O
+FS can do I/O
 Device 1 presence: 1
 block cache is good
 superblock is good
 bitmap is good
-No runnable environments in the system!
+TRAP frame at 0x8003fffd80 from CPU 0
+  r15  0x00000000
+  r14  0x00000200
+  r13  0x00000000
+  r12  0x00000200
+  r11  0x00000000
+  r10  0x00000000
+  r9  0x00000007
+  r8  0x00000007
+  rdi  0x00001002
+  rsi  0x8003fffe70
+  rbp  0x8003fffea0
+  rbx  0x00001002
+  rdx  0x80048442d0
+  rcx  0x00000000
+  rax  0x00000001
+  es   0x----0010
+  ds   0x----0010
+  trap 0x0000000e Page Fault
+  cr2  0x00000001
+  err  0x00000000 [kernel, read, not-present]
+  rip  0x800420ed8b
+  cs   0x----0008
+  flag 0x00010002
+kernel panic on CPU 0 at ../kern/trap.c:478: page fault
 Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
-qemu-system-x86_64: terminating on signal 15 from pid 5975
+qemu-system-x86_64: terminating on signal 15 from pid 8627

@@ -1,3 +1,9 @@
++ cc[USER] user/vmmanager.c
++ ld obj/user/vmmanager
++ cc[USER] user/init.c
++ ld obj/user/init
++ mk obj/fs/clean-fs.img
++ cp obj/fs/clean-fs.img obj/fs/fs.img
 ***
 *** Now run 'gdb'.
 ***
@@ -31,8 +37,23 @@ PCI: 00:01.3: 8086:7113: class: 80000b0800000006.80000b0800000080 (Bridge device
 PCI: 00:02.0: 1234:1111: class: 8000100800000003.8000100800000000 (Display controller) irq: 549755813888
 PCI: 00:03.0: 8086:100e: class: 8000180800000002.8000180800000000 (Network controller) irq: 549755813899
 PCI function 00:03.0 (8086:100e) enabled
-kernel panic on CPU 0 at ../vmm/ept.c:179: sys_ept_map success on non-guest env.
+host page in test function: 0x800474cb70
+EPT map to non-guest env failed as expected (4294967293).
+VCPUNUM allocated: 0
+EPT map from above UTOP area failed as expected (4294967293).
+EPT map from unaligned srcva failed as expected (4294967293).
+EPT map to out-of-boundary area failed as expected (4294967293).
+EPT map to unaligned guest_pa failed as expected (4294967293).
+EPT map with empty perm parameter failed as expected (4294967293).
+EPT map with write perm parameter failed as expected (4294967293).
+epte out 0x80048c3000
+overwriting
+sys_ept_map finished normally.
+pp_ref incremented correctly
+epte out 0x80048c6000
+overwriting
+kernel panic on CPU 0 at ../vmm/ept.c:333: sys_ept_map success on remapping the same page
 
 Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
-qemu-system-x86_64: terminating on signal 15 from pid 4170
+qemu-system-x86_64: terminating on signal 15 from pid 27073

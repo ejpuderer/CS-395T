@@ -539,7 +539,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		"mov %c[r13](%0), %%r13 \n\t"
 		"mov %c[r14](%0), %%r14 \n\t"
 		"mov %c[r15](%0), %%r15 \n\t"
-		"mov %c[rcx](%0), %%rcx \n\t"
+		"mov %c[rcx](%0), %%rcx \n\t" 
 		/* GUEST MODE */
 		/* Your code here:
 		 *

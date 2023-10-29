@@ -24,8 +24,8 @@ define hook-stop
 end
 
 #initially set architecture to x86_64
-echo + target remote localhost:1234\n
-target remote localhost:1234
+echo + target remote localhost:26000\n
+target remote localhost:26000
 
 # If this fails, it's probably because your GDB doesn't support ELF.
 # Look at the tools page at
@@ -34,7 +34,7 @@ target remote localhost:1234
 echo + symbol-file obj/kern/kernel\n
 symbol-file obj/kern/kernel
 
-hbreak jumpto_longmode
+hbreak *0x00000000001000e5
 commands
   set $amd64 = 1
   tbreak *0x0

@@ -9,18 +9,6 @@
 
 #define JOS_ENTRY 0x7000
 
-// From Canvas
-// breaks down each segment in number of pages, and calls sys_ept_map() for each page. 
-// You cannot pass in the page directly, but rather will have to use a TEMP variable. 
-// This is defined as a macro in memlayout.h
-//
-// Is srcva a kernel virtual address? - No. The srcva that is passed into sys_ept_map() is not a kernel virtual address. 
-// If you want to get the kernel virtual address associated with a srcva, you can look up the PageInfo struct associated 
-// with srcva, then look up the kernel virtual address for that PageInfo struct.
-//
-// What are the possible values of perm? - The possible values of perm (for sys_ept_map();
-// other permissions may be set for other situations in the codebase) are defined in inc/ept.h.
-//
 // Map a region of file fd into the guest at guest physical address gpa.
 // The file region to map should start at fileoffset and be length filesz.
 // The region to map in the guest should be memsz.  The region can span multiple pages.
@@ -31,70 +19,51 @@
 static int
 map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz, 
 	      int fd, size_t filesz, off_t fileoffset ) {
-	/* Your code here */
-	// return error if file size is greater than memory size
-	if (filesz > memsz) {
-		cprintf("map_in_guest filesz error\n");
-		return -1;
+	int i, ret;
+
+	i = PGOFF(gpa);
+	// if the provided guest physical address is not page-aligned, 
+	// adjust our values so we are working with a page-aligned address
+	if (i) {
+		gpa -= i;
+		memsz += i;
+		filesz += i;
+		fileoffset -= i;
 	}
 
-	envid_t srcid = sys_getenvid();
-	int r;
-
-	int i = 0;
-	for (; i < filesz; i += PGSIZE) {
-		// Can i exceed fd size?
-
-		// UTEMP from memlayout for temp mapping of pages
-		// allocate the memory
-		r = sys_page_alloc(srcid, UTEMP, PTE_SYSCALL);
-		if (r < 0) {
-			cprintf("map_in_guest sys_page_alloc error\n");
-			return r;
+	// walk through the provided region page by page and copy in the file contents
+	// the the physical memory region of the guest
+	for (i = 0; i < memsz; i += PGSIZE) {
+		// allocate a temporary page
+		ret = sys_page_alloc(0, UTEMP, PTE_P | PTE_U | PTE_W);
+		if (ret < 0) {
+			sys_page_unmap(0, UTEMP);
+			return ret;
 		}
-
-		// seek data from file
-		if ((r = seek(fd, fileoffset + i)) < 0) {
-			cprintf("map_in_guest seek error\n");
-			return r;
+		// seek to the location to write the file contents at
+		ret = seek(fd, fileoffset + i);
+		if (ret < 0) {
+			sys_page_unmap(0, UTEMP);
+			return ret;
 		}
-
-		// read from file
-		int totalBytesToRead = PGSIZE;
-		if (filesz - i < PGSIZE) {
-			totalBytesToRead = filesz - i;
+		// read file contents into the mapped page
+		ret = readn(fd, UTEMP, MIN(PGSIZE, filesz-i));
+		if (ret < 0) {
+			sys_page_unmap(0, UTEMP);
+			return ret;
 		}
-
-		if ((r = readn(fd, UTEMP, totalBytesToRead)) < 0) {
-			cprintf("map_in_guest readn error\n");
-			return r;
+		// map the page in the EPT
+		ret = sys_ept_map(0, UTEMP, guest, (void*) (gpa + i), __EPTE_FULL);
+		if (ret < 0) {
+			sys_page_unmap(0, UTEMP);
+			return ret;
 		}
-
-		// ept map hints mention PTE_W?
-		// where does fd/filesz and offset come in ?
-		r = sys_ept_map(srcid, UTEMP, guest, (void*) (gpa + i), PTE_SYSCALL);
-		if (r < 0) {
-			cprintf("map_in_guest sys_ept_map error\n");
-			return r;
-		}
-
-		//clear mapped for next loop
-		r = sys_page_unmap(srcid, UTEMP);
-		if (r < 0) {
-			cprintf("map_in_guest sys_page_unmap error\n");
-			return r;
-		}
+		sys_page_unmap(0, UTEMP);
 	}
-	// cprintf("map_in_guest success\n");
+
 	return 0;
 } 
 
-// From Canvas
-// reads the ELF header from the kernel executable into the struct Elf. 
-// The kernel ELF contains multiple segments which must be copied from the host to the guest. 
-// This function is similar to the one observed in the prelab but has to call something other than memcpy()
-// to map the memory because we are in the virtual guest.
-//
 // Read the ELF headers of kernel file specified by fname,
 // mapping all valid segments into guest physical memory as appropriate.
 //
@@ -103,39 +72,51 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 // Hint: compare with ELF parsing in env.c, and use map_in_guest for each segment.
 static int
 copy_guest_kern_gpa( envid_t guest, char* fname ) {
-	/* Your code here */
-	//File descriptor reference, dont modify
-	int fd = open(fname, O_RDONLY);
-	if (fd < 0) return fd;
+	// open the specified file
+	int fd, i, ret;
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		cprintf("error opening %s: %e\n", fname, fd);
+		return fd;
+	}
 
-	// see lib/spawn.c
-	unsigned char elf_buf[512];
-	struct Elf* elf = (struct Elf*) elf_buf;
-	if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
-            || elf->e_magic != ELF_MAGIC) {
+	int buflen = 512; // large enough to fit the whole Elf struct
+	unsigned char elf_buf[buflen];
+	struct Elf *elf;
+	struct Proghdr *ph;
+
+	// read in the header of file fname
+	ret = readn(fd, elf_buf, buflen);
+	if (ret != buflen) {
 		close(fd);
-		cprintf("elf magic %08x want %08x\n", elf->e_magic, ELF_MAGIC);
+		cprintf("Failed to read in ELF header\n");
 		return -E_NOT_EXEC;
 	}
 
-	//see load_icode in env.c for ELF load ex
-	struct Proghdr *ph, *eph;
-	ph  = (struct Proghdr *)((uint8_t *)elf + elf->e_phoff);
-	eph = ph + elf->e_phnum;
-	for(;ph < eph; ph++) {
-		if (ph->p_type == ELF_PROG_LOAD) {
-			int r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset);
-			if (r < 0) {
-				cprintf("map_in_guest error\n");
-				close(fd);
-				return r;
-			}
+	// point the elf struct at the elf buf
+	elf = (struct Elf*) elf_buf;
+
+	// check the ELF header's magic value to check that we are working with a valid ELF binary
+	if (elf->e_magic != ELF_MAGIC) {
+		close(fd);
+		cprintf("ELF magic is %08x, expected %08x\n", elf->e_magic, ELF_MAGIC);
+	}
+
+	// point the program header struct at the location indicated by the elf header
+	ph = (struct Proghdr* ) (elf_buf + elf->e_phoff);
+
+	// for every entry in the program header table, map the corresponding entry of the file 
+	// into the guest's physical address space
+	for (i = 0; i < elf->e_phnum; i++, ph++) {
+		ret = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset);
+		if (ret < 0) {
+			cprintf("Error mapping EPT page in guest %e\n", ret);
+			close(fd);
+			return ret;
 		}
 	}
 
 	close(fd);
-	fd = -1;
-	// cprintf("copy_guest_kern_gpa success\n");
 	return 0;
 }
 
