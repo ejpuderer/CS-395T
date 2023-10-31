@@ -287,9 +287,15 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		base_addr_low should contain the lower (least significant) 32 bits of the section base address and base_addr_high 
 		should contain the upper 32 bits; same with section length. If the value to store can be represented with fewer 
 		than 32 bits, the *_high field should be zeroed out.
+
+		From Ed Stem 445
+		means that when the section length has 64 bits, the bits 63:32 must be stored in length_high and bits 31:0 must be 
+		stored in length_low (assuming that the bit 63 is on the left, and the bit 0 on the right).
+		
 		*/
 		// Size 20 from bochs.out
-		//640K
+
+		// length should probably be somethign else, works, but really shouldnt
 		mmap[0].size = 20;
 		mmap[0].base_addr_low = 0;
 		mmap[0].base_addr_high = IOPHYSMEM -1;
@@ -319,19 +325,24 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// return a pointer to this region in rbx
 		tf->tf_regs.reg_rbx = (uint64_t) multiboot_map_addr;
 
-		//Create page allocation
+		//See ept.c/ept_alloc_static for example usage of page alloc / page2kva / ept_map_hva2gpa
+		//Create page allocation 
 		struct PageInfo *pi = page_alloc(ALLOC_ZERO);
 		if (!pi) {
 			//Page allocation fails
 			return false;
 		}
-		pi->pp_ref += 1;
-
+		
 		//kernel virtual from guest page
 		void *kva = page2kva(pi);
-		ept_map_hva2gpa(eptrt, kva, (void*)multiboot_map_addr, __EPTE_FULL, 1);
+		if (ept_map_hva2gpa(eptrt, kva, (void*)multiboot_map_addr, __EPTE_FULL, 1) < 0) {
+			// Map host virtual address hva to guest physical address gpa fails
+			return false;
+		};
+		// UPdate counter after success mapping
+		pi->pp_ref += 1;
 		
-		// copy mbinfo and mmap into guest page
+		// copy mbinfo and mmap into guest page - memcpy suggestion from canvas part 2 desc
 		memcpy(kva, (void*)&mbinfo, sizeof(mbinfo));	
 		memcpy(kva, (void*)mmap, sizeof(mmap));
 
