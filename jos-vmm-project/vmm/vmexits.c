@@ -214,8 +214,33 @@ bool
 handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
 	/* Your code here  */
-    panic("handle_cpuid is not impemented\n");
-    return false;
+    // panic("handle_cpuid is not impemented\n");
+
+	// The TA's solution does not hard-code the length of the cpuid instruction. ??
+	uint32_t eax, ebx, ecx, edx;
+	// rax is function register
+	uint64_t rax = tf->tf_regs.reg_rax;
+	cpuid(rax, &eax, &ebx, &ecx, &edx );
+
+	// should hide the presence of vmx from the guest if processor features are requested	
+	if (rax == 1) {
+		// from vmx_check_support, vmx bit is 5 -> 32
+		// tried 32, got exposed to guest 
+		uint32_t mask = 0x20;
+		ecx = ecx & ~mask;
+	}
+
+	// store the output of the instruction in Trapframe tf
+	tf->tf_regs.reg_rax = (uint64_t)eax;
+    tf->tf_regs.reg_rbx = (uint64_t)ebx;
+    tf->tf_regs.reg_rcx = (uint64_t)ecx;
+    tf->tf_regs.reg_rdx = (uint64_t)edx;
+
+	// Finally, you need to increment the program counter in the trap frame.
+	tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+
+	// Return true if the exit is handled properly, false if the VM should be terminated. ??
+    return true;
 }
 
 // Handle vmcall traps from the guest.
@@ -239,6 +264,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	uint32_t val;
 	// phys address of the multiboot map in the guest.
 	uint64_t multiboot_map_addr = 0x6000;
+	struct memory_map mmap[3]; // Throws Error on compile inside of case
 	switch(tf->tf_regs.reg_rax) {
 	case VMX_VMCALL_MBMAP:
         /* Hint: */
@@ -252,6 +278,64 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
+
+		// Create three  memory mapping segments: 640k of low mem, the I/O hole (unusable), and 
+		//   high memory (phys_size - 1024k).
+		
+		/* From Canvas FAQ
+		What is the difference between base_addr_low and base_addr_high/length_low and length_high in memory_map_t? - 
+		base_addr_low should contain the lower (least significant) 32 bits of the section base address and base_addr_high 
+		should contain the upper 32 bits; same with section length. If the value to store can be represented with fewer 
+		than 32 bits, the *_high field should be zeroed out.
+		*/
+		// Size 20 from bochs.out
+		//640K
+		mmap[0].size = 20;
+		mmap[0].base_addr_low = 0;
+		mmap[0].base_addr_high = IOPHYSMEM -1;
+		mmap[0].length_low = 0; 
+		mmap[0].length_high = IOPHYSMEM - 1;
+		mmap[0].type = MB_TYPE_USABLE;
+
+		mmap[1].size = 20;
+		mmap[1].base_addr_low = IOPHYSMEM;
+		mmap[1].base_addr_high = EXTPHYSMEM - IOPHYSMEM - 1;
+		mmap[1].length_low = IOPHYSMEM; 
+		mmap[1].length_high = EXTPHYSMEM - IOPHYSMEM - 1;
+		mmap[1].type = MB_TYPE_RESERVED; //Unusable
+
+		mmap[2].size = 20;
+		mmap[2].base_addr_low = EXTPHYSMEM - IOPHYSMEM;
+		mmap[2].base_addr_high = EXTPHYSMEM;
+		mmap[2].length_low = EXTPHYSMEM - IOPHYSMEM;
+	    mmap[2].length_high = EXTPHYSMEM;
+		mmap[2].type = MB_TYPE_USABLE; 
+
+		// Set the flags, size, and address fields of the mbinfo struct to the correct values.
+		mbinfo.flags = MB_FLAG_MMAP;
+	    mbinfo.mmap_length = 3;
+	    mbinfo.mmap_addr =  multiboot_map_addr;
+
+		// return a pointer to this region in rbx
+		tf->tf_regs.reg_rbx = (uint64_t) multiboot_map_addr;
+
+		//Create page allocation
+		struct PageInfo *pi = page_alloc(ALLOC_ZERO);
+		if (!pi) {
+			//Page allocation fails
+			return false;
+		}
+		pi->pp_ref += 1;
+
+		//kernel virtual from guest page
+		void *kva = page2kva(pi);
+		ept_map_hva2gpa(eptrt, kva, (void*)multiboot_map_addr, __EPTE_FULL, 1);
+		
+		// copy mbinfo and mmap into guest page
+		memcpy(kva, (void*)&mbinfo, sizeof(mbinfo));	
+		memcpy(kva, (void*)mmap, sizeof(mmap));
+
+		handled = true;
 		break;
 	case VMX_VMCALL_IPCSEND:
         /* Hint: */
@@ -294,6 +378,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		 * Hint: The solution does not hard-code the length of the vmcall instruction.
 		 */
 		/* Your code here */
+		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
 	}
 	return handled;
 }
