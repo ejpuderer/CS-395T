@@ -231,14 +231,8 @@ monitor(struct Trapframe *tf)
 {
 	char *buf;
 
-	cprintf("hi");
-	#ifdef VMM_GUEST
-		cprintf("this is the vm cr3: %d", rcr3());
-	#endif 
-	cprintf("this is the host cr3: %d", rcr3());
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
-
 
 #line 241 "../kern/monitor.c"
 	if (tf != NULL)

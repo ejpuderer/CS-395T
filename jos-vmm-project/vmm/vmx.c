@@ -436,9 +436,12 @@ void vmexit() {
 	static uint32_t host_vector;
 	// Get the reason for VMEXIT from the VMCS.
 	// Your code here.
-	// VMCS_32BIT_VMEXIT_REASON from vmx.h
+
+	// -- LAB 3 --
+	// check the VMCS for the exit reason
 	exit_reason = vmcs_read32(VMCS_32BIT_VMEXIT_REASON);
-	// cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
+
+	//cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
 	/* vmcs_dump_cpu(); */
 
 	switch(exit_reason & EXIT_REASON_MASK) {
@@ -476,7 +479,6 @@ void vmexit() {
 	}
 
 	if(!exit_handled) {
-		cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
 		cprintf( "Unhandled VMEXIT, aborting guest.\n" );
 		vmcs_dump_cpu();
 		env_destroy(curenv);
