@@ -166,6 +166,28 @@ void free_guest_mem(epte_t* eptrt) {
 //
 int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
     /* Your code here */
+    epte_t *epte;
+
+    // set create as 1 due to insert vs update
+    int r = ept_lookup_gpa(eptrt, gpa, 1, &epte);
+    if (r < 0) return r; // Multiple possiple failure points in ept_lookup_gpa
+
+    // It is possible for ept_lookup_gpa to not fail but also not set epte
+    // Since this has to do with memory, throw no memory error
+    if (epte == NULL) return -E_NO_MEM;
+
+    //From assignment hints
+    // If there is already a page at the given guest physical address, be sure to decrement its reference count before overwriting the mapping.
+    if (*epte & PTE_P) {
+		page_remove((pml4e_t*)eptrt, gpa);
+	}
+
+    // Add Page pp to a guest's EPT at guest physical address gpa with permission perm
+    *epte = page2pa(pp) | PTE_P | perm;
+    
+    // increment the reference count of pp on a successful insert
+    pp->pp_ref++;
+
     return 0;
 }
 
