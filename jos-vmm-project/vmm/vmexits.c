@@ -365,13 +365,54 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		//  this to a host virtual address for the IPC to work properly.
         //  Then you should call sys_ipc_try_send()
 		/* Your code here */
-		break;
+		// The type of the destination env in %rbx
+		to_env = tf->tf_regs.reg_rbx;
 
+		// From canvas If the type is not HOST FS, this function returns E_INVAL.
+		if (to_env != VMX_HOST_FS_ENV) {
+			return -E_INVAL;
+		}
+
+		//The value to send in %rcx
+		val = tf->tf_regs.reg_rcx;
+
+		// The physical address of a page to send in %rdx
+		gpa_pg = (void*)tf->tf_regs.reg_rdx;
+		
+		// The permissions for the sent page in %rsi
+		perm = tf->tf_regs.reg_rsi;
+		
+		// // traverses all the environments, and sets the to_env to the environment ID corresponding to ENV_TYPE_FS at the host
+		int i;
+		for (i = 0; i < NENV; i++) {
+			if (envs[i].env_type == ENV_TYPE_FS) {
+				to_env = envs[i].env_id;
+				break;
+			}
+		}
+
+		// The input should be a guest physical address; you will need to convert
+		//  this to a host virtual address for the IPC to work properly.
+		ept_gpa2hva(eptrt, gpa_pg, &hva_pg);
+		
+		int r;
+		// Calling sys_ipc_try_send direct causes error on compile
+		r = syscall(SYS_ipc_try_send, to_env, val, (uint64_t) hva_pg, perm, 0);
+		if (r < 0) {
+			return r;
+		}
+
+		handled = true;
+		break;
 	case VMX_VMCALL_IPCRECV:
 		// Issue the sys_ipc_recv call for the guest.
 		// NB: because recv can call schedule, clobbering the VMCS, 
 		// you should go ahead and increment rip before this call.
 		/* Your code here */
+		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+		tf->tf_regs.reg_rax = syscall(SYS_ipc_recv, tf->tf_regs.reg_rbx, 0, 0, 0, 0);
+		
+		handled = true;
 		break;
 	case VMX_VMCALL_LAPICEOI:
 		lapic_eoi();
