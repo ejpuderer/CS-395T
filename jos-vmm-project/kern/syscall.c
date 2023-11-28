@@ -324,27 +324,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     /*  Hint: check if environment is ENV_TYPE_GUEST or not, and if the source or destination 
      *  is using normal page, use page_insert. Use ept_page_insert() wherever possible. */
     /* Your code here */
-    if(curenv->env_type == ENV_TYPE_GUEST && e->env_ipc_dstva < (void*) UTOP) {
-        pp = pa2page(PADDR(srcva));
-        r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
-		if (r < 0) {
-			return -E_INVAL;
-		}
-        e->env_ipc_perm = perm;
-    } else if (e->env_type == ENV_TYPE_GUEST && srcva < (void*) UTOP) {
-        pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
-		if(pp == NULL) {
-			return -E_INVAL;
-		}
-
-#ifndef VMM_GUEST
-		r = ept_page_insert(e->env_pml4e, pp, e->env_ipc_dstva, __EPTE_FULL);
-        if (r < 0) {
-			return -E_INVAL;
-		}
-#endif
-
-    } else if (srcva < (void*) UTOP && e->env_ipc_dstva < (void*) UTOP) {
+    if (srcva < (void*) UTOP && e->env_ipc_dstva < (void*) UTOP) {
         if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
             cprintf("[%08x] bad perm %x in sys_ipc_try_send\n", curenv->env_id, perm);
             return -E_INVAL;
